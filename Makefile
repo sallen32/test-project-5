@@ -4,7 +4,7 @@ CFLAGS=-Wall -g -O0
 
 all: $(TARGETS)
 
-homework4: homework5.c
+homework5: homework5.c
 	gcc $(CFLAGS) -o homework5 homework5.c -lpthread
 
 thread_example: thread_example.c
