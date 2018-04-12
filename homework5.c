@@ -158,7 +158,10 @@ printf("FILENAME: %s\n",filename);
   if( stat(filename,&memes) != 0 )
   {
 	printf("404 Error Dawg, check yoself\n");
-	exit(1);
+        strcpy(filename, "./404.html");
+         printf("FILENAME inside thingy: %s\n",filename);
+	read_fd = open(filename,0,0);
+//	exit(1);
   }
 
 
