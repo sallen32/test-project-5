@@ -15,10 +15,71 @@
 
 #define BACKLOG (10)
 
+
+struct stat memes;
+
+
 void serve_request(int);
 
 char * request_str = "HTTP/1.0 200 OK\r\n"
         "Content-type: text/html; charset=UTF-8\r\n\r\n";
+
+/*
+  char * request_test = "HTTP/1.0 200 OK\r\n"
+          "Content-type: image/gif; charset=UTF-8\r\n\r\n";
+*/
+
+char * file_type_return(char* filebuffer)
+{
+	char * token = NULL;
+	token = malloc(256);
+	
+	token = strstr(filebuffer,"." );
+	token++;
+
+//printf("token: %s\n", token);
+
+	if( strcmp(token, "gif") == 0 )
+	{
+		token = "image/gif";
+	}
+
+         if( strcmp(token, "html") == 0 )
+         {
+                 token = "text/html";
+         }
+
+	if( strcmp(token,"jpg") == 0 || strcmp(token, "jpeg") == 0 )
+	{
+		token = "image/jpeg";
+	}
+
+	if( strcmp(token,"pdf") == 0)
+	{
+		token = "application/pdf";
+	}
+
+	if( strcmp(token,"png") == 0)
+	{
+		token = "image/png";
+	}
+
+	if( strcmp(token,"txt") == 0)
+	{
+		token = "text/plain";
+	}
+
+printf("token: %s\n", token);
+
+	char * token2 = malloc(256);
+	token2 = strcat(token2, "HTTP/1.0 200 OK\r\n Content-type: ");
+
+	token = strcat(token2, token);
+	token = strcat(token,"; charset=UTF-8\r\n\r\n");
+
+	return token;
+
+}
 
 
 char * index_hdr = "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 3.2 Final//EN\"><html>"
@@ -50,6 +111,7 @@ char* parseRequest(char* request) {
   if(fnmatch("GET * HTTP/1.*",  request, 0)) return 0; 
 
   sscanf(request, "GET %s HTTP/1.", buffer);
+
   return buffer; 
 }
 
@@ -64,18 +126,42 @@ void serve_request(int client_fd){
   char * requested_file;
   memset(client_buf,0,4096);
   memset(filename,0,4096);
-  while(1){
+ 
+printf("HELLO \n");
+
+ while(1){
 
     file_offset += recv(client_fd,&client_buf[file_offset],4096,0);
     if(strstr(client_buf,"\r\n\r\n"))
       break;
   }
-  requested_file = parseRequest(client_buf);
-  send(client_fd,request_str,strlen(request_str),0);
+printf("please work \n"); 
+
+
+ requested_file = parseRequest(client_buf);
+ // file_type_return(requested_file);
+  printf("abc %s", requested_file);
+ 
+  send(client_fd,file_type_return(requested_file),strlen(file_type_return(requested_file)),0);
   // take requested_file, add a . to beginning, open that file
   filename[0] = '.';
   strncpy(&filename[1],requested_file,4095);
   read_fd = open(filename,0,0);
+
+printf("FILENAME: %s\n",filename);
+
+//if( read_fd == -1)
+//{
+//	printf("404 Error Dawg, check yourself\n");
+//	exit(-1);
+//}
+  if( stat(filename,&memes) != 0 )
+  {
+	printf("404 Error Dawg, check yoself\n");
+	exit(1);
+  }
+
+
   while(1){
     bytes_read = read(read_fd,send_buf,4096);
     if(bytes_read == 0)
@@ -92,10 +178,26 @@ void serve_request(int client_fd){
  * 1) The port number on which to bind and listen for connections, and
  * 2) The directory out of which to serve files.
  */
+struct thread_arg {
+	int sock;
+//	char buffer[256];
+};
+
+void *thread_function(void *argument_value) {
+	struct thread_arg *my_argument = (struct thread_arg *) argument_value;
+	serve_request(my_argument->sock);
+	close(my_argument->sock);
+
+return NULL;
+}
+
+
 int main(int argc, char** argv) {
     /* For checking return values. */
     int retval;
 
+    chdir(argv[2]);
+    printf("MEMES\n");
     /* Read the port number from the first command line argument. */
     int port = atoi(argv[1]);
 
@@ -159,11 +261,32 @@ int main(int argc, char** argv) {
         exit(1);
     }
 
+  struct thread_arg *arguments =  malloc(100 * sizeof(struct thread_arg));
+         if(arguments == NULL) {
+                 printf("malloc() failed on arguments \n");
+                 exit(1);
+         }
+
+
+
+  pthread_t *threads = malloc(100 * sizeof(pthread_t));
+         if(threads == NULL) {
+                 printf("malloc() failed on threads \n");
+                 exit(1);
+         }
+
+
+
+
     while(1) {
         /* Declare a socket for the client connection. */
-        int sock;
-        char buffer[256];
+    //    int sock;
+    //    char buffer[256];
+	
+	int i = 0;
 
+	
+	pthread_create(&threads[i], NULL, thread_function, (void *) &arguments[i] );
         /* Another address structure.  This time, the system will automatically
          * fill it in, when we accept a connection, to tell us where the
          * connection came from. */
@@ -176,8 +299,12 @@ int main(int argc, char** argv) {
          * there are no pending connections in the back log, this function will
          * block indefinitely while waiting for a client connection to be made.
          * */
-        sock = accept(server_sock, (struct sockaddr*) &remote_addr, &socklen);
-        if(sock < 0) {
+        
+	  arguments[i].sock = accept(server_sock, (struct sockaddr*) &remote_addr, &socklen);		    
+//        sock = accept(server_sock, (struct sockaddr*) &remote_addr, &socklen);
+    
+
+        if(arguments[i].sock < 0) {
             perror("Error accepting connection");
             exit(1);
         }
@@ -187,12 +314,28 @@ int main(int argc, char** argv) {
 
         /* ALWAYS check the return value of send().  Also, don't hardcode
          * values.  This is just an example.  Do as I say, not as I do, etc. */
-        serve_request(sock);
+ //       serve_request(sock);
 
         /* Tell the OS to clean up the resources associated with that client
          * connection, now that we're done with it. */
-        close(sock);
+  //      close(sock);
+
+//	pthread_join(threads[i],NULL);
+ 
+		i++;
+
+   }
+
+    int c = 0;
+    for( c = 0; c < 100; c++) {
+        int retval = pthread_join(threads[c], NULL);
+        if (retval) {
+            printf("pthread_join() failed\n");
+            exit(1);
+        }
     }
+
+
 
     close(server_sock);
 }

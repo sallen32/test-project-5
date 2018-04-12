@@ -1,0 +1,2 @@
+colorscheme pablo
+syntax on
