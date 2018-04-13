@@ -146,9 +146,10 @@ printf("please work \n");
   // take requested_file, add a . to beginning, open that file
   filename[0] = '.';
   strncpy(&filename[1],requested_file,4095);
+  printf("~FILENAME: %s ~\n",filename); 
   read_fd = open(filename,0,0);
 
-printf("FILENAME: %s\n",filename);
+//printf("FILENAME: %s\n",filename);
 
 //if( read_fd == -1)
 //{
@@ -163,6 +164,8 @@ printf("FILENAME: %s\n",filename);
 	read_fd = open(filename,0,0);
 //	exit(1);
   }
+
+ // read_fd = open(filename,0,0);
 
 
   while(1){
